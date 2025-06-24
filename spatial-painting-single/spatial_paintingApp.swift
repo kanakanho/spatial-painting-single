@@ -9,16 +9,24 @@ import SwiftUI
 
 @main
 struct spatial_paintingApp: App {
-
+    
     @State private var appModel = AppModel()
     @State private var model = ViewModel()
-
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(appModel)
         }
-
+        
+        WindowGroup("ExternalStroke", id: "ExternalStroke") {
+            ExternalStrokeView()
+                .environment(appModel)
+                .environment(model)
+                .handlesExternalEvents(preferring: [], allowing: [])
+        }
+        .handlesExternalEvents(matching: ["targetContentIdentifier"])
+        
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
             ImmersiveView()
                 .environment(appModel)
@@ -31,5 +39,5 @@ struct spatial_paintingApp: App {
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
-     }
+    }
 }

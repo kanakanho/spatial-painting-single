@@ -17,18 +17,17 @@ struct ContentView: View {
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @Environment(\.dismissWindow) var dismissWindow
     
+    @Environment(\.openWindow) private var openWindow
+    
     // added by nagao 2025/6/15
     @Environment(AppModel.self) var appModel
-
+    
     var body: some View {
         @Bindable var appModel = appModel
         VStack {
-            /*
-             Model3D(named: "Scene", bundle: realityKitContentBundle)
-             .padding(.bottom, 50)
-             
-             Text("Hello, world!")
-             */
+            Button("ファイルに保存・ファイルから読み出し") {
+                openWindow(id: "ExternalStroke")
+            }
             
             ToggleImmersiveSpaceButton()
         }
