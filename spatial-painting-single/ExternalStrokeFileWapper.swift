@@ -55,6 +55,19 @@ class ExternalStrokeFileWapper {
         }
     }
     
+    /// ストロークを削除する
+    func deleteStroke(in selectedImageURL: URL) {
+        // 選択されたディレクトリの URL を取得
+        let selectedURL = selectedImageURL.deletingLastPathComponent()
+        do {
+            // 選択されたディレクトリを削除
+            try FileManager.default.removeItem(at: selectedURL)
+            print("Deleted directory at: \(selectedURL.path)")
+        } catch {
+            print("Error deleting directory: \(error)")
+        }
+    }
+    
     /// ストロークから画像を作る
     private func makePNGData(strokes: [ExternalStroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
         let canvasSize = CGSize(width: 1024, height: 1024)
