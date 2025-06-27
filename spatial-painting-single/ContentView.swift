@@ -25,11 +25,13 @@ struct ContentView: View {
     var body: some View {
         @Bindable var appModel = appModel
         VStack {
-            Button("ファイルに保存・ファイルから読み出し") {
+            Button("File Manager") {
                 openWindow(id: "ExternalStroke")
             }
+            .padding(.horizontal)
             
             ToggleImmersiveSpaceButton()
+                .padding(.top, 20)
         }
         .padding()
         VStack {

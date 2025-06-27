@@ -8,6 +8,7 @@
 import ARKit
 import RealityKit
 import UIKit
+import ImageIO
 
 class ExternalStrokeFileWapper {
     private let documentDirectory: URL
@@ -28,7 +29,7 @@ class ExternalStrokeFileWapper {
     }
     
     /// 外部に保存する
-    func writeStroke(externalStrokes : [ExternalStroke], image: UIImage) {
+    func writeStroke(externalStrokes : [ExternalStroke], displayScale: CGFloat) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let nowDate = Date()
@@ -43,7 +44,7 @@ class ExternalStrokeFileWapper {
             try data.write(to: jsonFileURL)
             print("File written to: \(jsonFileURL.path)")
             
-            guard let imageData = image.pngData() else {
+            guard let imageData = makePNGData(strokes: externalStrokes, planeNormal: SIMD3<Float>(0,0,-1), planePoint: SIMD3<Float>(0,0,0), displayScale: displayScale) else {
                 print("Error converting image to PNG data")
                 return
             }
@@ -52,6 +53,121 @@ class ExternalStrokeFileWapper {
         } catch {
             print("Error writing file: \(error)")
         }
+    }
+    
+    /// ストロークから画像を作る
+    private func makePNGData(strokes: [ExternalStroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
+        let canvasSize = CGSize(width: 1024, height: 1024)
+        let n = normalize(planeNormal)
+        let arbitrary: SIMD3<Float> = abs(n.x) < 0.9 ? [1,0,0] : [0,1,0]
+        let u = normalize(cross(n, arbitrary)), v = cross(n, u)
+        
+        // 2D 射影＋バウンディング計算
+        var all2D: [[SIMD2<Float>]] = []
+        var minX = Float.greatestFiniteMagnitude, maxX = -Float.greatestFiniteMagnitude
+        var minY = Float.greatestFiniteMagnitude, maxY = -Float.greatestFiniteMagnitude
+        for stroke in strokes {
+            var proj: [SIMD2<Float>] = []
+            for p in stroke.points {
+                let pProj = p - dot(p - planePoint, n) * n
+                let x = dot(pProj - planePoint, u), y = dot(pProj - planePoint, v)
+                proj.append([x,y])
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+            all2D.append(proj)
+        }
+        
+        // スケーリング
+        let inset: CGFloat = 50
+        let wF = maxX - minX, hF = maxY - minY
+        let scale = min((canvasSize.width - inset*2)/CGFloat(wF),
+                        (canvasSize.height - inset*2)/CGFloat(hF))
+        
+        // CGContext 作成
+        guard let cs = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(
+                data: nil,
+                width: Int(canvasSize.width * displayScale),
+                height: Int(canvasSize.height * displayScale),
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: cs,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return nil }
+        ctx.scaleBy(x: displayScale, y: displayScale)
+        ctx.setLineCap(.round)
+        ctx.setLineWidth(4)
+        
+        // 描画
+        for (idx, stroke) in strokes.enumerated() {
+            ctx.setStrokeColor(stroke.color)
+            let proj = all2D[idx]
+            guard proj.count > 1 else { continue }
+            ctx.beginPath()
+            let first = proj[0]
+            ctx.move(to: CGPoint(
+                x: CGFloat(first.x - minX)*scale + inset,
+                y: CGFloat(maxY - first.y)*scale + inset
+            ))
+            for pt in proj.dropFirst() {
+                ctx.addLine(to: CGPoint(
+                    x: CGFloat(pt.x - minX)*scale + inset,
+                    y: CGFloat(maxY - pt.y)*scale + inset
+                ))
+            }
+            ctx.strokePath()
+        }
+        
+        guard let cgImg = ctx.makeImage() else { return nil }
+        
+        // 90° 回転
+        let finalImage = rotateCGImage90Clockwise(cgImg) ?? cgImg
+        
+        // CGImageDestination で PNG データ化
+        let mutableData = CFDataCreateMutable(nil, 0)!
+        guard let dest = CGImageDestinationCreateWithData(
+            mutableData,
+            "public.png" as CFString,
+            1,
+            nil
+        ) else {
+            return nil
+        }
+        CGImageDestinationAddImage(dest, finalImage, nil)
+        guard CGImageDestinationFinalize(dest) else {
+            return nil
+        }
+        return mutableData as Data
+    }
+    
+    /// CGImage を 90° 時計回りに回転した新しい CGImage を返す
+    func rotateCGImage90Clockwise(_ image: CGImage) -> CGImage? {
+        let w = image.width
+        let h = image.height
+        
+        guard
+            let colorSpace = image.colorSpace,
+            let ctx = CGContext(
+                data: nil,
+                width: h,               // 幅と高さを反転
+                height: w,
+                bitsPerComponent: image.bitsPerComponent,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: image.bitmapInfo.rawValue
+            )
+        else {
+            return nil
+        }
+        
+        // 原点を左下（新コンテキストの (0,w)）に移動
+        ctx.translateBy(x: 0, y: CGFloat(w))
+        // -90° 回転 (radians)
+        ctx.rotate(by: -CGFloat.pi/2)
+        // 元画像を描画
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h)))
+        return ctx.makeImage()
     }
     
     /// ディレクトリの一覧を取得する
