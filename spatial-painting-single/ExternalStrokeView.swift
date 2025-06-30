@@ -25,30 +25,11 @@ struct ExternalStrokeView: View {
     
     var body: some View {
         VStack {
-            Toggle("Delete Mode", isOn: $isDeleteMode)
-                .toggleStyle(.button)
-                .padding(20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            //            Button(action: {
-            //                // モード切替
-            //                isDeleteMode.toggle()
-            //            }) {
-            //                if isDeleteMode {
-            //                    Text("Load Mode")
-            //                } else {
-            //                    Text("Delete Mode")
-            //                }
-            //
-            //            }
-            //            .padding(20)
-            //            .frame(maxWidth: .infinity, alignment: .trailing)
-            
             if isDeleteMode {
                 VStack(spacing: 0) {
                     // サムネイルグリッド
                     ThumbnailDeleteGridView(
-                        imageURLs: imageURLs,
+                        imageURLs: $imageURLs,
                         selectedURL: $selectedURL
                     )
                     // 選択中のファイルを下部に表示
@@ -60,15 +41,17 @@ struct ExternalStrokeView: View {
                             .background(.ultraThinMaterial)
                     }
                 }
-                .onAppear(perform: loadThumbnails)
+                //.onAppear(perform: loadThumbnails)
                 .ignoresSafeArea(edges: .bottom)
                 
                 // ファイル読み込み
-                Button("Delete Stroke") {
+                Button("Delete File") {
                     // 選択されたファイルを削除
                     if let selectedImageURL = selectedURL {
                         externalStrokeFileWapper.deleteStroke(in: selectedImageURL)
                     }
+                    fileList = externalStrokeFileWapper.listDirs().map { $0.lastPathComponent }.sorted(by: >)
+                    imageURLs = loadThumbnails()
                     selectedURL = nil
                 }
                 .padding(.bottom, 20)
@@ -78,6 +61,7 @@ struct ExternalStrokeView: View {
                     let externalStrokes: [ExternalStroke] = .init(strokes: model.canvas.strokes, initPoint: .one)
                     externalStrokeFileWapper.writeStroke(externalStrokes: externalStrokes, displayScale: displayScale)
                     fileList = externalStrokeFileWapper.listDirs().map { $0.lastPathComponent }.sorted(by: >)
+                    imageURLs = loadThumbnails()
                     if fileList.count == 1 {
                         selectedFile = fileList[0]
                     }
@@ -87,7 +71,7 @@ struct ExternalStrokeView: View {
                 VStack(spacing: 0) {
                     // サムネイルグリッド
                     ThumbnailGridView(
-                        imageURLs: imageURLs,
+                        imageURLs: $imageURLs,
                         selectedURL: $selectedURL
                     )
                     // 選択中のファイルを下部に表示
@@ -99,7 +83,6 @@ struct ExternalStrokeView: View {
                             .background(.ultraThinMaterial)
                     }
                 }
-                .onAppear(perform: loadThumbnails)
                 .ignoresSafeArea(edges: .bottom)
                 
                 // ファイル読み込み
@@ -114,14 +97,22 @@ struct ExternalStrokeView: View {
                 }
                 .padding(.bottom, 20)
             }
+            Toggle("Delete Mode", isOn: $isDeleteMode)
+                .toggleStyle(.button)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
         }
         .onAppear() {
             fileList = externalStrokeFileWapper.listDirs().map { $0.lastPathComponent }.sorted(by: >)
+            imageURLs = loadThumbnails()
+            externalStrokeFileWapper.planeNormalVector = model.planeNormalVector
+            externalStrokeFileWapper.planePoint = model.planePoint
         }
     }
     
     /// Documents/StrokeCanvas 以下をスキャンして thumbnail.png を集める
-    private func loadThumbnails() {
+    private func loadThumbnails() -> [URL] {
         let docDir = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)
             .first!
@@ -135,13 +126,13 @@ struct ExternalStrokeView: View {
                 urls.append(thumb)
             }
         }
-        imageURLs = urls
+        return urls
     }
 }
 
 /// サムネイル一覧＋選択ビュー
 struct ThumbnailGridView: View {
-    let imageURLs: [URL]             // サムネイル画像ファイルの URL 一覧
+    @Binding var imageURLs: [URL]    // サムネイル画像ファイルの URL 一覧
     @Binding var selectedURL: URL?   // 選択中の画像 URL
     
     // Adaptive サイズのカラムレイアウト
@@ -192,7 +183,7 @@ struct ThumbnailGridView: View {
 
 /// サムネイル一覧＋選択ビュー
 struct ThumbnailDeleteGridView: View {
-    let imageURLs: [URL]             // サムネイル画像ファイルの URL 一覧
+    @Binding var imageURLs: [URL]    // サムネイル画像ファイルの URL 一覧
     @Binding var selectedURL: URL?   // 選択中の画像 URL
     
     // Adaptive サイズのカラムレイアウト
@@ -240,7 +231,6 @@ struct ThumbnailDeleteGridView: View {
         return img
     }
 }
-
 
 #Preview(windowStyle: .automatic) {
     ExternalStrokeView()

@@ -13,7 +13,9 @@ import ImageIO
 class ExternalStrokeFileWapper {
     private let documentDirectory: URL
     private var fileDir: URL
-    
+    var planeNormalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
+    var planePoint: SIMD3<Float> = SIMD3<Float>(0,0,0)
+
     init() {
         self.documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         fileDir = documentDirectory.appendingPathComponent("StrokeCanvas/")
@@ -44,7 +46,7 @@ class ExternalStrokeFileWapper {
             try data.write(to: jsonFileURL)
             print("File written to: \(jsonFileURL.path)")
             
-            guard let imageData = makePNGData(strokes: externalStrokes, planeNormal: SIMD3<Float>(0,0,-1), planePoint: SIMD3<Float>(0,0,0), displayScale: displayScale) else {
+            guard let imageData = makePNGData(strokes: externalStrokes, planeNormal: planeNormalVector /*SIMD3<Float>(0,0,-1)*/, planePoint: planePoint /*SIMD3<Float>(0,0,0)*/, displayScale: displayScale) else {
                 print("Error converting image to PNG data")
                 return
             }
@@ -71,11 +73,31 @@ class ExternalStrokeFileWapper {
     /// ストロークから画像を作る
     private func makePNGData(strokes: [ExternalStroke], planeNormal: SIMD3<Float>, planePoint: SIMD3<Float>, displayScale: CGFloat) -> Data? {
         let canvasSize = CGSize(width: 1024, height: 1024)
+        /*
         let n = normalize(planeNormal)
         let arbitrary: SIMD3<Float> = abs(n.x) < 0.9 ? [1,0,0] : [0,1,0]
         let u = normalize(cross(n, arbitrary)), v = cross(n, u)
-        
-        // 2D 射影＋バウンディング計算
+        */
+        // planeNormal を正規化
+        let n = normalize(planeNormal)
+        // ワールドの下向きベクトル
+        let worldUp = SIMD3<Float>(0, -1, 0)
+
+        // 1) worldUpを平面に落とした「平面内の上向きvを計算
+        var v = worldUp - n * dot(worldUp, n)
+        // もしほとんどゼロベクトル（planeNormalがworldUpと平行）なら
+        if length(v) < 1e-6 {
+            // 任意の横方向を使う（平面が水平 or ほぼ水平のときのフォールバック）
+            v = normalize(cross(n, SIMD3<Float>(1, 0, 0)))
+        } else {
+            v = normalize(v)
+        }
+
+        // 2) X軸方向uは外積で
+        let u = normalize(cross(v, n))
+
+        // 以降はu,vを使って3D→2D射影
+        // 2D射影＋バウンディング計算
         var all2D: [[SIMD2<Float>]] = []
         var minX = Float.greatestFiniteMagnitude, maxX = -Float.greatestFiniteMagnitude
         var minY = Float.greatestFiniteMagnitude, maxY = -Float.greatestFiniteMagnitude
@@ -97,7 +119,7 @@ class ExternalStrokeFileWapper {
         let scale = min((canvasSize.width - inset*2)/CGFloat(wF),
                         (canvasSize.height - inset*2)/CGFloat(hF))
         
-        // CGContext 作成
+        // CGContext作成
         guard let cs = CGColorSpace(name: CGColorSpace.sRGB),
               let ctx = CGContext(
                 data: nil,
@@ -134,8 +156,8 @@ class ExternalStrokeFileWapper {
         
         guard let cgImg = ctx.makeImage() else { return nil }
         
-        // 90° 回転
-        let finalImage = rotateCGImage90Clockwise(cgImg) ?? cgImg
+        // 90°回転
+        //let finalImage = rotateCGImage90Clockwise(cgImg) ?? cgImg
         
         // CGImageDestination で PNG データ化
         let mutableData = CFDataCreateMutable(nil, 0)!
@@ -147,14 +169,14 @@ class ExternalStrokeFileWapper {
         ) else {
             return nil
         }
-        CGImageDestinationAddImage(dest, finalImage, nil)
+        CGImageDestinationAddImage(dest, cgImg /*finalImage*/, nil)
         guard CGImageDestinationFinalize(dest) else {
             return nil
         }
         return mutableData as Data
     }
     
-    /// CGImage を 90° 時計回りに回転した新しい CGImage を返す
+    /// CGImageを90°時計回りに回転した新しいCGImageを返す
     func rotateCGImage90Clockwise(_ image: CGImage) -> CGImage? {
         let w = image.width
         let h = image.height
@@ -183,6 +205,20 @@ class ExternalStrokeFileWapper {
         return ctx.makeImage()
     }
     
+    // entity の「前方向（−Z 軸）」をベクトルで得る
+    func forwardVector(of entity: Entity) -> SIMD3<Float> {
+        // RealityKit では回転が transform.rotation（simd_quatf）に入っている
+        let q: simd_quatf = entity.transform.rotation
+
+        // ローカル空間の「前方向」ベクトル (0,0,-1) をクォータニオンで回転
+        let localForward = SIMD3<Float>(0, 0, -1)
+        let worldForward = q.act(localForward)
+
+        print("Forward vector: \(worldForward)")
+
+        return normalize(worldForward)
+    }
+
     /// ディレクトリの一覧を取得する
     func listDirs() -> [URL] {
         do {

@@ -19,6 +19,6 @@ class AppModel {
     }
     var immersiveSpaceState = ImmersiveSpaceState.closed
     var senseThreshold: Float = 0.5  // 感度の初期値 added by nagao 2025/6/15
-    var distanceThreshold: Float = 0.6  // 距離の初期値 added by nagao 2025/6/16
+    var distanceThreshold: Float = 0.8  // 距離の初期値 added by nagao 2025/6/16
     var isArrowShown: Bool = false // 手の向きを表す矢印の表示 added by nagao 2025/6/16
 }

@@ -23,10 +23,12 @@ struct ImmersiveView: View {
 
     @State var headLockedEntity: Entity = {
         let headAnchor = AnchorEntity(.head)
-        headAnchor.position = [0.0, 0.0, -0.01]
+        headAnchor.position = [0.0, 0.0, -0.1]
         return headAnchor
     }()
 
+    @Environment(\.displayScale) private var displayScale: CGFloat
+    
     var body: some View {
         RealityView { content in
             do {
@@ -41,14 +43,6 @@ struct ImmersiveView: View {
 
                 // added by nagao 2025/6/16
                 model.setAppModel(appModel)
-                /*
-                let color = UIColor(red: 192/255, green: 192/255, blue: 192/255, alpha: 1.0)
-                let coneEntity = ModelEntity(
-                    mesh: .generateCone(height: 0.1, radius: 0.02),
-                    materials: [SimpleMaterial(color: color, isMetallic: true)])
-                coneEntity.name = "cone"
-                headLockedEntity.addChild(coneEntity)
-                */
 
                 if let eraserEntity = scene.findEntity(named: "collider") {
                     model.canvas.setEraserEntity(eraserEntity)
@@ -56,9 +50,12 @@ struct ImmersiveView: View {
                     print("eraserEntity not found")
                 }
                 
-                content.add(headLockedEntity)
-                model.setHeadLockedEntity(headLockedEntity)
-
+                if let buttonEntity = scene.findEntity(named: "button") {
+                    model.setButtonEntity(buttonEntity)
+                } else {
+                    print("buttonEntity not found")
+                }
+                
                 // added by nagao 3/22
                 for fingerEntity in model.fingerEntities.values {
                     //print("Collision Setting for \(fingerEntity.name)")
@@ -83,6 +80,8 @@ struct ImmersiveView: View {
                             }
                             model.canvas.strokes.removeAll{ $0.entity.components[StrokeComponent.self]?.uuid == strokeComponent.uuid
                             }
+                        } else if (collisionEvent.entityB.name == "button") {
+                            _ = model.recordTime(isBegan: true)
                         }
                     }
 
@@ -99,6 +98,10 @@ struct ImmersiveView: View {
                                 */
                                 model.canvas.root.children.removeAll()
                                 model.canvas.strokes.removeAll()
+                            }
+                        } else if (collisionEvent.entityB.name == "button") {
+                            if model.recordTime(isBegan: false) {
+                                model.saveStrokes(displayScale: displayScale)
                             }
                         }
                     }
@@ -206,6 +209,20 @@ struct ImmersiveView: View {
                     }
                 })
             )
+    }
+
+    static func rotateEntityAroundXAxis(entity: Entity, angle: Float) {
+        // Get the current transform of the entity
+        var currentTransform = entity.transform
+        
+        // Create a quaternion representing a rotation around the Y-axis
+        let rotation = simd_quatf(angle: angle, axis: [1, 0, 0])
+        
+        // Combine the rotation with the current transform
+        currentTransform.rotation = rotation * currentTransform.rotation
+        
+        // Apply the new transform to the entity
+        entity.transform = currentTransform
     }
 }
 
