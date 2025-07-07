@@ -21,6 +21,7 @@ struct ExternalStrokeView: View {
     @State var fileList: [String] = []
     @State var selectedFile: String = ""
     
+    @State private var isLoading: Bool = false
     @State private var isDeleteMode: Bool = false
     
     var body: some View {
@@ -86,16 +87,32 @@ struct ExternalStrokeView: View {
                 .ignoresSafeArea(edges: .bottom)
                 
                 // ファイル読み込み
-                Button("Load Stroke") {
-                    if let comps = selectedURL?.pathComponents {
-                        selectedFile = comps[comps.count - 2]
+                Toggle("Load Stroke Mode", isOn: $isLoading)
+                    .toggleStyle(.button)
+                    .padding(.bottom, 20)
+                    .onChange(of: isLoading) {
+                        if isLoading {
+                            if let comps = selectedURL?.pathComponents {
+                                selectedFile = comps[comps.count - 2]
+                            }
+                            if !selectedFile.isEmpty {
+                                let externalStrokes = externalStrokeFileWapper.readStrokes(in: selectedFile)
+                                model.canvas.addTmpStrokes(externalStrokes.strokes(initPoint: .one))
+                            }
+                        } else {
+                            model.canvas.clearTmpStrokes()
+                        }
                     }
-                    if !selectedFile.isEmpty {
-                        let externalStrokes = externalStrokeFileWapper.readStrokes(in: selectedFile)
-                        model.canvas.addStrokes(externalStrokes.strokes(initPoint: .one))
-                    }
+                
+                // ロードしたデータの確定
+                Button("Confirm Loaded Stroke") {
+                    model.canvas.confirmTmpStrokes()
+                    // isLoading を false にしてロードモードを終了
+                    isLoading = false
                 }
                 .padding(.bottom, 20)
+                .disabled(!model.canvas.tmpStrokes.isEmpty)
+                
             }
             Toggle("Delete Mode", isOn: $isDeleteMode)
                 .toggleStyle(.button)

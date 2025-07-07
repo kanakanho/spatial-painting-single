@@ -73,7 +73,7 @@ class ViewModel {
     
     var handArrowEntities: [Entity] = []
     
-    var buttonEntity: Entity?
+    var buttonEntity: Entity = Entity()
     
     var axisVectors: [SIMD3<Float>] = [SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0)]
     
@@ -128,7 +128,7 @@ class ViewModel {
         handSphereEntity = nil
         colorPalletModel.colorPalletEntityDisable()
         
-        buttonEntity!.removeFromParent()
+        buttonEntity.removeFromParent()
     }
     
     let fingerEntities: [HandAnchor.Chirality: ModelEntity] = [/*.left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),*/ .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))]
@@ -383,7 +383,7 @@ class ViewModel {
               let rightWristBase = rightHandAnchor.handSkeleton?.joint(.wrist)
         else { return }
         
-        guard let button = buttonEntity else { return }
+        let button = buttonEntity
         
         let middle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleBase.anchorFromJointTransform
         let little: simd_float4x4 = handAnchor.originFromAnchorTransform * littleBase.anchorFromJointTransform

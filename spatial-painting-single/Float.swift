@@ -33,6 +33,10 @@ extension Float4 {
     func toFloat3() -> Float3 {
         Float3(self)
     }
+    
+    init(_ float3: Float3) {
+        self.init(float3, 1.0)
+    }
 }
 
 extension Float4x4 {
@@ -50,4 +54,12 @@ extension Float4x4 {
 /// Create a mathematical clamp.
 func clamp(_ valueX: Float, min minV: Float, max maxV: Float) -> Float {
     return min(maxV, max(minV, valueX))
+}
+
+extension SIMD3<Float> {
+    var matrix4x4: simd_float4x4 {
+        var matrix = matrix_identity_float4x4
+        matrix.columns.3 = SIMD4<Float>(self, 1.0)
+        return matrix
+    }
 }

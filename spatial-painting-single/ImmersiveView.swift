@@ -15,18 +15,20 @@ struct ImmersiveView: View {
     @Environment(ViewModel.self) var model
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @Environment(\.openWindow) var openWindow
-
+    
     @State var lastIndexPose: SIMD3<Float>?
+    @State var lastTmpStrokeIndexPose: SIMD3<Float>?
+    @State var prevLastIndexPose: SIMD3<Float>?
     
     // added by nagao 2025/6/15
     @Environment(AppModel.self) var appModel
-
+    
     @State var headLockedEntity: Entity = {
         let headAnchor = AnchorEntity(.head)
         headAnchor.position = [0.0, 0.0, -0.1]
         return headAnchor
     }()
-
+    
     @Environment(\.displayScale) private var displayScale: CGFloat
     
     var body: some View {
@@ -35,15 +37,15 @@ struct ImmersiveView: View {
                 let scene = try await Entity(named: "Immersive", in: realityKitContentBundle)
                 //content.add(scene)
                 model.colorPalletModel.setSceneEntity(scene: scene)
-
+                
                 content.add(model.setupContentEntity())
                 content.add(model.colorPalletModel.colorPalletEntity)
                 let root = model.canvas.root
                 content.add(root)
-
+                
                 // added by nagao 2025/6/16
                 model.setAppModel(appModel)
-
+                
                 if let eraserEntity = scene.findEntity(named: "collider") {
                     model.canvas.setEraserEntity(eraserEntity)
                 } else {
@@ -70,7 +72,7 @@ struct ImmersiveView: View {
                             model.isEraserMode = true
                             _ = model.recordTime(isBegan: true)
                         } else if (collisionEvent.entityB.components.contains(where: {$0 is StrokeComponent})) {
-                            if !model.isEraserMode {
+                            if !model.isEraserMode, !model.canvas.tmpStrokes.isEmpty {
                                 return
                             }
                             guard let strokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else {
@@ -84,7 +86,7 @@ struct ImmersiveView: View {
                             _ = model.recordTime(isBegan: true)
                         }
                     }
-
+                    
                     _ = content.subscribe(to: CollisionEvents.Ended.self, on: fingerEntity) { collisionEvent in
                         if model.colorPalletModel.colorNames.contains(collisionEvent.entityB.name) {
                             model.selectColor(colorName: collisionEvent.entityB.name)
@@ -92,10 +94,10 @@ struct ImmersiveView: View {
                         } else if (collisionEvent.entityB.name == "clear") {
                             if model.recordTime(isBegan: false) {
                                 /*
-                                for stroke in model.canvas.strokes {
-                                    stroke.entity.removeFromParent()
-                                }
-                                */
+                                 for stroke in model.canvas.strokes {
+                                 stroke.entity.removeFromParent()
+                                 }
+                                 */
                                 model.canvas.root.children.removeAll()
                                 model.canvas.strokes.removeAll()
                             }
@@ -106,7 +108,7 @@ struct ImmersiveView: View {
                         }
                     }
                 }
-
+                
                 root.components.set(ClosureComponent(closure: { deltaTime in
                     var anchors = [HandAnchor]()
                     
@@ -124,17 +126,17 @@ struct ImmersiveView: View {
                         guard let handSkeleton = anchor.handSkeleton else {
                             continue
                         }
-
+                        
                         /// The current position and orientation of the thumb tip.
                         let thumbPos = (
                             anchor.originFromAnchorTransform * handSkeleton.joint(.thumbTip).anchorFromJointTransform).translation()
-
+                        
                         /// The current position and orientation of the index finger tip.
                         let indexPos = (anchor.originFromAnchorTransform * handSkeleton.joint(.indexFingerTip).anchorFromJointTransform).translation()
-
+                        
                         /// The threshold to check if the index and thumb are close.
                         let pinchThreshold: Float = 0.03
-
+                        
                         // Update the last index position if the distance
                         // between the thumb tip and index finger tip is
                         // less than the pinch threshold.
@@ -151,12 +153,12 @@ struct ImmersiveView: View {
             //model.webSocketClient.connect()
             do {
                 /*
-                if model.dataProvidersAreSupported && model.isReadyToRun {
-                    try await model.session.run([model.sceneReconstruction, model.handTracking])
-                } else {
-                    await dismissImmersiveSpace()
-                }
-                */
+                 if model.dataProvidersAreSupported && model.isReadyToRun {
+                 try await model.session.run([model.sceneReconstruction, model.handTracking])
+                 } else {
+                 await dismissImmersiveSpace()
+                 }
+                 */
                 try await model.session.run([model.sceneReconstruction, model.handTracking])
             } catch {
                 print("Failed to start session: \(error)")
@@ -198,19 +200,43 @@ struct ImmersiveView: View {
             DragGesture(minimumDistance: 0)
                 .targetedToAnyEntity()
                 .onChanged({ _ in
-                    if !model.isEraserMode, let pos = lastIndexPose {
+                    if !model.canvas.tmpStrokes.isEmpty {
+                        if let lastIndexPose = lastIndexPose, lastTmpStrokeIndexPose == nil && model.canvas.isPointInsideBoundingBox(lastIndexPose) {
+                            // 直前のlastIndexPoseとの差分を計算して移動
+                            if let prevLastIndexPose = self.lastIndexPose {
+                                let diff = lastIndexPose - prevLastIndexPose
+                                model.canvas.transfromFromMatrix(diff.matrix4x4)
+                            }
+                            lastTmpStrokeIndexPose = lastIndexPose
+                            prevLastIndexPose = lastIndexPose
+                            return
+                        }
+                        
+                        if let prevLastIndexPose = prevLastIndexPose,
+                           let lastIndexPose = lastIndexPose {
+                            let diff = lastIndexPose - prevLastIndexPose
+                            model.canvas.transfromFromMatrix(diff.matrix4x4)
+                            self.prevLastIndexPose = lastIndexPose
+                        }
+                    }
+                    if model.canvas.tmpStrokes.isEmpty, !model.isEraserMode, let pos = lastIndexPose {
                         let uuid: UUID = UUID()
                         model.canvas.addPoint(uuid, pos)
                     }
                 })
                 .onEnded({ _ in
-                    if !model.isEraserMode {
+                    if !model.canvas.tmpStrokes.isEmpty, lastTmpStrokeIndexPose != nil {
+                        lastTmpStrokeIndexPose = nil
+                        prevLastIndexPose = nil
+                    }
+                    
+                    if model.canvas.tmpStrokes.isEmpty, !model.isEraserMode {
                         model.canvas.finishStroke()
                     }
                 })
-            )
+        )
     }
-
+    
     static func rotateEntityAroundXAxis(entity: Entity, angle: Float) {
         // Get the current transform of the entity
         var currentTransform = entity.transform
