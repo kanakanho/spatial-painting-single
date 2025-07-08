@@ -1,0 +1,4 @@
+module RealityKitContent {
+    header "/Users/kanakanho/src/visionpro/spatial-painting-single/Packages/RealityKitContent/.build/arm64-apple-macosx/debug/RealityKitContent.build/RealityKitContent-Swift.h"
+    requires objc
+}

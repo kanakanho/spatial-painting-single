@@ -40,18 +40,7 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "white",
-        "obj1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "clear",
-        "Materials"
+        "collider"
       ],
       {
         "isExpanded" : true,
@@ -60,6 +49,15 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "button"
       ],
       {
         "isExpanded" : true,
@@ -78,17 +76,18 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "clear"
+        "white"
       ],
       {
-        "isExpanded" : true,
+        "disallowsFraming" : false,
+        "isExpanded" : false,
         "isLocked" : false
       },
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "collider",
-        "Materials"
+        "white",
+        "obj1"
       ],
       {
         "isExpanded" : true,
@@ -107,17 +106,56 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "white"
+        "button",
+        "Materials"
       ],
       {
-        "disallowsFraming" : false,
-        "isExpanded" : false,
+        "isExpanded" : true,
         "isLocked" : false
       },
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "collider"
+        "clear",
+        "Materials"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "collider",
+        "Materials"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "clear"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "red",
+        "Materials"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "AF09ED6F-1707-48FD-8720-65B998362C09",
+        "Root",
+        "red"
       ],
       {
         "isExpanded" : true,
