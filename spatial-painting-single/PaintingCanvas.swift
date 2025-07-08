@@ -16,6 +16,7 @@ class PaintingCanvas {
     var strokes: [Stroke] = []
     let tmpRoot = Entity()
     var tmpStrokes: [Stroke] = []
+    var tmpBoundingBoxEntity: Entity = Entity()
     var tmpBoundingBox: BoundingBoxCube = BoundingBoxCube()
     
     var eraserEntity: Entity = Entity()
@@ -156,6 +157,9 @@ extension PaintingCanvas {
         for edge in tmpBoundingBox.edges {
             generateLineEntiry(linePoint: edge)
         }
+        generateInputTargetEntity()
+        
+        tmpRoot.addChild(tmpBoundingBoxEntity)
     }
     
     func generateCornerEntity(corner: SIMD3<Float>) {
@@ -185,6 +189,31 @@ extension PaintingCanvas {
         lineEntity.transform.rotation = rotation
         
         tmpRoot.addChild(lineEntity)
+    }
+    
+    func generateInputTargetEntity() {
+        let shapes = ShapeResource.generateBox(
+            width: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.x - tmpBoundingBox.corners[.minXMinYMinZ]!.x,
+            height: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.y - tmpBoundingBox.corners[.minXMinYMinZ]!.y,
+            depth: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.z - tmpBoundingBox.corners[.minXMinYMinZ]!.z
+        )
+        let mesh = MeshResource.generateBox(
+            width: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.x - tmpBoundingBox.corners[.minXMinYMinZ]!.x,
+            height: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.y - tmpBoundingBox.corners[.minXMinYMinZ]!.y,
+            depth: tmpBoundingBox.corners[.maxXMaxYMaxZ]!.z - tmpBoundingBox.corners[.minXMinYMinZ]!.z
+        )
+        let midPoint = tmpBoundingBox.center
+        let material = SimpleMaterial(color: .white, isMetallic: false)
+        let inputTargetEntity = Entity()
+        inputTargetEntity.setPosition(midPoint, relativeTo: nil)
+        inputTargetEntity.components.set(ModelComponent(mesh: mesh, materials: [material]))
+        inputTargetEntity.components.set(OpacityComponent(opacity: 0.1))
+        tmpRoot.addChild(inputTargetEntity)
+        
+        tmpBoundingBoxEntity.components.set(InputTargetComponent())
+        tmpBoundingBoxEntity.components.set(CollisionComponent(shapes: [shapes], isStatic: true))
+        tmpBoundingBoxEntity.setPosition(midPoint, relativeTo: nil)
+        tmpRoot.addChild(tmpBoundingBoxEntity)
     }
     
     /// 一時的な Stroke を追加する
@@ -231,6 +260,7 @@ extension PaintingCanvas {
         // root から tmpStrokes のエンティティを削除
         tmpRoot.children.removeAll()
         tmpStrokes.removeAll()
+        tmpBoundingBoxEntity = Entity()
         tmpRoot.transform.matrix = .identity
     }
     
@@ -241,22 +271,21 @@ extension PaintingCanvas {
         }
         tmpRoot.children.removeAll()
         tmpStrokes.removeAll()
+        tmpBoundingBoxEntity = Entity()
     }
     
     /// ストロークの並行移動
     func translate(_ translation: SIMD3<Float>) {
         let translationMatrix = translation.matrix4x4
         
-        tmpRoot.transform.matrix = tmpRoot.transform.matrix * translationMatrix
-        updateBoundingBox(matrix: translationMatrix)
+        transfromFromMatrix(translationMatrix)
     }
     
     /// ストロークの回転
     func rotate(_ rotation: simd_quatf) {
         let rotationMatrix = simd_float4x4(rotation)
         
-        tmpRoot.transform.matrix = tmpRoot.transform.matrix * rotationMatrix
-        updateBoundingBox(matrix: rotationMatrix)
+        transfromFromMatrix(rotationMatrix)
     }
     
     /// ストロークの拡大縮小
@@ -268,14 +297,13 @@ extension PaintingCanvas {
             SIMD4<Float>(0, 0, 0, 1)
         ])
         
-        tmpRoot.transform.matrix = tmpRoot.transform.matrix * scaleMatrix
-        updateBoundingBox(matrix: scaleMatrix)
+        transfromFromMatrix(scaleMatrix)
     }
     
     /// ストロークを動かす
     func transfromFromMatrix(_ matrix: simd_float4x4) {
         tmpRoot.transform.matrix = tmpRoot.transform.matrix * matrix
-        
+        //        tmpBoundingBoxEntity.transform.matrix = tmpBoundingBoxEntity.transform.matrix * matrix
         /// バウンディングボックスの更新
         updateBoundingBox(matrix: matrix)
     }
@@ -304,7 +332,7 @@ extension PaintingCanvas {
         init() {
             self.corners = Dictionary(uniqueKeysWithValues: Corner.allCases.map { ($0, SIMD3<Float>(0, 0, 0)) })
         }
-
+        
         /// イニシャライザ（全頂点指定）
         init(corners: [Corner: SIMD3<Float>]) {
             self.corners = corners
@@ -332,6 +360,19 @@ extension PaintingCanvas {
         var center: SIMD3<Float> {
             let sum = corners.values.reduce(SIMD3<Float>.zero, +)
             return sum / Float(corners.count)
+        }
+        
+        // 6個の面
+        var surface: [(SIMD3<Float>, SIMD3<Float>, SIMD3<Float>, SIMD3<Float>)] {
+            let surfaceIndices: [(Corner, Corner, Corner, Corner)] = [
+                (.minXMinYMinZ, .maxXMinYMinZ, .maxXMaxYMinZ, .minXMaxYMinZ), // 底面
+                (.minXMinYMaxZ, .maxXMinYMaxZ, .maxXMaxYMaxZ, .minXMaxYMaxZ), // 上面
+                (.minXMinYMinZ, .minXMinYMaxZ, .minXMaxYMaxZ, .minXMaxYMinZ), // 左面
+                (.maxXMinYMinZ, .maxXMinYMaxZ, .maxXMaxYMaxZ, .maxXMaxYMinZ), // 右面
+                (.minXMinYMinZ, .minXMaxYMinZ, .maxXMaxYMinZ, .maxXMinYMinZ), // 前面
+                (.minXMinYMaxZ, .minXMaxYMaxZ, .maxXMaxYMaxZ, .maxXMinYMaxZ)  // 後面
+            ]
+            return surfaceIndices.map { (corners[$0.0]!, corners[$0.1]!, corners[$0.2]!, corners[$0.3]!) }
         }
         
         func isPointInside(_ point: SIMD3<Float>) -> Bool {
