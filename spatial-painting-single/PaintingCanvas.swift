@@ -243,6 +243,35 @@ extension PaintingCanvas {
         tmpStrokes.removeAll()
     }
     
+    /// ストロークの並行移動
+    func translate(_ translation: SIMD3<Float>) {
+        let translationMatrix = translation.matrix4x4
+        
+        tmpRoot.transform.matrix = tmpRoot.transform.matrix * translationMatrix
+        updateBoundingBox(matrix: translationMatrix)
+    }
+    
+    /// ストロークの回転
+    func rotate(_ rotation: simd_quatf) {
+        let rotationMatrix = simd_float4x4(rotation)
+        
+        tmpRoot.transform.matrix = tmpRoot.transform.matrix * rotationMatrix
+        updateBoundingBox(matrix: rotationMatrix)
+    }
+    
+    /// ストロークの拡大縮小
+    func scale(_ scale: SIMD3<Float>) {
+        let scaleMatrix: simd_float4x4 = .init(rows: [
+            SIMD4<Float>(scale.x, 0, 0, 0),
+            SIMD4<Float>(0, scale.y, 0, 0),
+            SIMD4<Float>(0, 0, scale.z, 0),
+            SIMD4<Float>(0, 0, 0, 1)
+        ])
+        
+        tmpRoot.transform.matrix = tmpRoot.transform.matrix * scaleMatrix
+        updateBoundingBox(matrix: scaleMatrix)
+    }
+    
     /// ストロークを動かす
     func transfromFromMatrix(_ matrix: simd_float4x4) {
         tmpRoot.transform.matrix = tmpRoot.transform.matrix * matrix
