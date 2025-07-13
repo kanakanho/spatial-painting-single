@@ -126,6 +126,10 @@ struct ExternalStrokeView: View {
             externalStrokeFileWapper.planeNormalVector = model.planeNormalVector
             externalStrokeFileWapper.planePoint = model.planePoint
         }
+        .onDisappear {
+            isLoading = false
+            model.canvas.clearTmpStrokes()
+        }
     }
     
     /// Documents/StrokeCanvas 以下をスキャンして thumbnail.png を集める

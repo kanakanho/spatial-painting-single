@@ -48,7 +48,7 @@ struct ContentView: View {
             }
             .padding()
             VStack {
-                Text("Distance to Head: \(appModel.distanceThreshold, specifier: "%.2f")")
+                Text("Distance between Hands: \(appModel.distanceThreshold, specifier: "%.2f")")
                     .font(.headline)
                 Slider(value: $appModel.distanceThreshold, in: 0...1) {
                     Text("Distance Threshold")

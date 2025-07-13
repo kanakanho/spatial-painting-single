@@ -39,6 +39,8 @@ class ViewModel {
     
     var isGlab: Bool = false
     
+    var isHandGripped: Bool = false
+    
     enum OperationLock {
         case none
         case right
@@ -75,6 +77,8 @@ class ViewModel {
     
     var buttonEntity: Entity = Entity()
     
+    var buttonEntity2: Entity = Entity()
+    
     var axisVectors: [SIMD3<Float>] = [SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0)]
     
     var normalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
@@ -91,6 +95,10 @@ class ViewModel {
     
     func setButtonEntity(_ entity: Entity) {
         self.buttonEntity = entity
+    }
+    
+    func setButtonEntity2(_ entity: Entity) {
+        self.buttonEntity2 = entity
     }
     
     func showHandArrowEntities() {
@@ -129,6 +137,7 @@ class ViewModel {
         colorPalletModel.colorPalletEntityDisable()
         
         buttonEntity.removeFromParent()
+        buttonEntity2.removeFromParent()
     }
     
     let fingerEntities: [HandAnchor.Chirality: ModelEntity] = [/*.left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),*/ .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))]
@@ -384,6 +393,7 @@ class ViewModel {
         else { return }
         
         let button = buttonEntity
+        let button2 = buttonEntity2
         
         let middle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleBase.anchorFromJointTransform
         let little: simd_float4x4 = handAnchor.originFromAnchorTransform * littleBase.anchorFromJointTransform
@@ -410,6 +420,13 @@ class ViewModel {
         let threshold = handSize * 0.5 // 手のサイズに基づいた閾値を計算
         let flag = distances.allSatisfy { $0 > threshold }
         
+        let distances2 = [
+            distance(middlePos, thumbPos),
+            distance(middlePos, littlePos),
+            distance(thumbPos, littlePos),
+        ]
+        isHandGripped = distances2.allSatisfy { $0 < threshold }
+        
         if !flag {
             if isArrowShown && handSphereEntity != nil {
                 handSphereEntity!.removeFromParent()
@@ -435,10 +452,15 @@ class ViewModel {
         let worldUp = simd_float3(0, 1, 0)
         let dot = simd_dot(normalVector, worldUp)
         if dot > senseThreshold {
-            button.setPosition(calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07), relativeTo: nil)
+            let point = calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07)
+            button.setPosition(point, relativeTo: nil)
             contentEntity.addChild(button)
+            let point2 = calculateExtendedPoint(point: point, vector: planeNormalVector, distance: 0.05)
+            button2.setPosition(point2, relativeTo: nil)
+            contentEntity.addChild(button2)
         } else {
             button.removeFromParent()
+            button2.removeFromParent()
         }
         
         // ワールドの下方向ベクトル
@@ -720,5 +742,9 @@ class ViewModel {
         externalStrokeFileWapper.planePoint = planePoint
         externalStrokeFileWapper.writeStroke(externalStrokes: externalStrokes, displayScale: displayScale)
         colorPalletModel.playShutterSound()
+    }
+
+    func confirmTmpStrokes() {
+        canvas.confirmTmpStrokes()
     }
 }

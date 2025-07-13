@@ -15,11 +15,17 @@ struct ImmersiveView: View {
     @Environment(ViewModel.self) var model
     @Environment(\.dismissImmersiveSpace) var dismissImmersiveSpace
     @Environment(\.openWindow) var openWindow
-    
+    @Environment(\.dismissWindow) private var dismissWindow
+
     @State var lastIndexPose: SIMD3<Float>?
     @State var lastTmpStrokeIndexPose: SIMD3<Float>?
     @State var prevLastIndexPose: SIMD3<Float>?
     
+    // added by nagao 2025/7/10
+    @State private var sourceTransform: Transform?
+
+    @State private var isFileManagerActive: Bool = false
+
     // added by nagao 2025/6/15
     @Environment(AppModel.self) var appModel
     
@@ -58,6 +64,12 @@ struct ImmersiveView: View {
                     print("buttonEntity not found")
                 }
                 
+                if let buttonEntity2 = scene.findEntity(named: "button2") {
+                    model.setButtonEntity2(buttonEntity2)
+                } else {
+                    print("buttonEntity2 not found")
+                }
+                
                 // added by nagao 3/22
                 for fingerEntity in model.fingerEntities.values {
                     //print("Collision Setting for \(fingerEntity.name)")
@@ -72,7 +84,7 @@ struct ImmersiveView: View {
                             model.isEraserMode = true
                             _ = model.recordTime(isBegan: true)
                         } else if (collisionEvent.entityB.components.contains(where: {$0 is StrokeComponent})) {
-                            if !model.isEraserMode, !model.canvas.tmpStrokes.isEmpty {
+                            if !model.isEraserMode || !model.canvas.tmpStrokes.isEmpty {
                                 return
                             }
                             guard let strokeComponent = collisionEvent.entityB.components[StrokeComponent.self] else {
@@ -82,7 +94,10 @@ struct ImmersiveView: View {
                             }
                             model.canvas.strokes.removeAll{ $0.entity.components[StrokeComponent.self]?.uuid == strokeComponent.uuid
                             }
+                            //print("delete stroke")
                         } else if (collisionEvent.entityB.name == "button") {
+                            _ = model.recordTime(isBegan: true)
+                        } else if (collisionEvent.entityB.name == "button2") {
                             _ = model.recordTime(isBegan: true)
                         }
                     }
@@ -98,12 +113,25 @@ struct ImmersiveView: View {
                                  stroke.entity.removeFromParent()
                                  }
                                  */
-                                model.canvas.root.children.removeAll()
-                                model.canvas.strokes.removeAll()
+                                model.canvas.reset()
                             }
                         } else if (collisionEvent.entityB.name == "button") {
                             if model.recordTime(isBegan: false) {
                                 model.saveStrokes(displayScale: displayScale)
+                            }
+                        } else if (collisionEvent.entityB.name == "button2") {
+                            if model.recordTime(isBegan: false) {
+                                if !isFileManagerActive {
+                                    DispatchQueue.main.async {
+                                        openWindow(id: "ExternalStroke")
+                                    }
+                                } else {
+                                    model.confirmTmpStrokes()
+                                    DispatchQueue.main.async {
+                                        dismissWindow(id: "ExternalStroke")
+                                    }
+                                }
+                                isFileManagerActive.toggle()
                             }
                         }
                     }
@@ -198,41 +226,47 @@ struct ImmersiveView: View {
         }
         .gesture(
             DragGesture(minimumDistance: 0)
+                .simultaneously(with: MagnifyGesture())
                 .targetedToAnyEntity()
-                .onChanged({ _ in
-                    if !model.canvas.tmpStrokes.isEmpty {
-                        if let lastIndexPose = lastIndexPose, lastTmpStrokeIndexPose == nil && model.canvas.isPointInsideBoundingBox(lastIndexPose) {
-                            // 直前のlastIndexPoseとの差分を計算して移動
-                            if let prevLastIndexPose = self.lastIndexPose {
-                                let diff = lastIndexPose - prevLastIndexPose
-                                model.canvas.transfromFromMatrix(diff.matrix4x4)
-                            }
-                            lastTmpStrokeIndexPose = lastIndexPose
-                            prevLastIndexPose = lastIndexPose
-                            return
-                        }
-                        
-                        if let prevLastIndexPose = prevLastIndexPose,
-                           let lastIndexPose = lastIndexPose {
-                            let diff = lastIndexPose - prevLastIndexPose
-                            model.canvas.transfromFromMatrix(diff.matrix4x4)
-                            self.prevLastIndexPose = lastIndexPose
-                        }
+                .onChanged({ value in
+                    if sourceTransform == nil {
+                        sourceTransform = value.entity.transform
                     }
-                    if model.canvas.tmpStrokes.isEmpty, !model.isEraserMode, let pos = lastIndexPose {
+                    // added by nagao 2025/7/10
+                    if !model.canvas.tmpStrokes.isEmpty {
+                        if value.entity.name == "boundingBox" {
+                            let isHandGripped = self.model.isHandGripped
+
+                            if isHandGripped {
+                                if let translation = value.first?.translation3D {
+                                    let rotationX = Float(translation.x / 1000.0) * .pi
+                                    let rotationY = Float(translation.y / 1000.0) * .pi
+                                    
+                                    //print("rotationX = \(rotationX), rotationY = \(rotationY)")
+                                    value.entity.transform.rotation = sourceTransform!.rotation * simd_quatf(angle: rotationX, axis: [0, 1, 0]) * simd_quatf(angle: rotationY, axis: [1, 0, 0])
+                                }
+                            } else if let magnification = value.second?.magnification {
+                                //print("magnification: \(magnification)")
+                                let magnification = Float(magnification)
+
+                                value.entity.transform.scale = [sourceTransform!.scale.x * magnification, sourceTransform!.scale.y * magnification, sourceTransform!.scale.z * magnification]
+                            } else if let translation = value.first?.translation3D {
+                                let convertedTranslation = value.convert(translation, from: .local, to: value.entity.parent!)
+
+                                value.entity.transform.translation = sourceTransform!.translation + convertedTranslation
+                            }
+                        }
+                    } else if !model.isEraserMode, let pos = lastIndexPose {
                         let uuid: UUID = UUID()
                         model.canvas.addPoint(uuid, pos)
                     }
                 })
                 .onEnded({ _ in
-                    if !model.canvas.tmpStrokes.isEmpty, lastTmpStrokeIndexPose != nil {
-                        lastTmpStrokeIndexPose = nil
-                        prevLastIndexPose = nil
-                    }
-                    
                     if model.canvas.tmpStrokes.isEmpty, !model.isEraserMode {
                         model.canvas.finishStroke()
                     }
+
+                    sourceTransform = nil
                 })
         )
     }
