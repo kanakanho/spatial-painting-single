@@ -34,7 +34,12 @@ class Stroke {
     var points: [SIMD3<Float>] = []
 
     /// The maximum radius of the stroke.
-    let maxRadius: Float = 1E-2
+    var maxRadius: Float = 1E-2
+    
+    /// 元の maxRadius を保持するプロパティを追加（初期値 1E-2）
+    var originalMaxRadius: Float {
+        return 1E-2
+    }
 
     /// The number of points in each ring of the mesh.
     let pointsPerRing = 8
@@ -42,6 +47,11 @@ class Stroke {
     init(uuid: UUID) {
         self.uuid = uuid
         entity.components.set(StrokeComponent(uuid))
+    }
+    
+    func updateMaxRadiusAndRemesh(scaleFactor: Float) {
+        self.maxRadius = self.originalMaxRadius / scaleFactor
+        self.updateMesh()
     }
     
     /// Update the mesh with the points of the stroke if it already exists,

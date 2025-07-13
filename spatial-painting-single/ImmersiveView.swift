@@ -250,6 +250,12 @@ struct ImmersiveView: View {
                                 let magnification = Float(magnification)
 
                                 value.entity.transform.scale = [sourceTransform!.scale.x * magnification, sourceTransform!.scale.y * magnification, sourceTransform!.scale.z * magnification]
+                                
+                                value.entity.children.forEach { child in
+                                    model.canvas.tmpStrokes.filter({ $0.entity.components[StrokeComponent.self]?.uuid == child.components[StrokeComponent.self]?.uuid }).forEach { stroke in
+                                        stroke.updateMaxRadiusAndRemesh(scaleFactor: value.entity.transform.scale.sum() / 3)
+                                    }
+                                }
                             } else if let translation = value.first?.translation3D {
                                 let convertedTranslation = value.convert(translation, from: .local, to: value.entity.parent!)
 
