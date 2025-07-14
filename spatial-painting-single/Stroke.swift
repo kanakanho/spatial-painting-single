@@ -44,8 +44,9 @@ class Stroke {
     /// The number of points in each ring of the mesh.
     let pointsPerRing = 8
 
-    init(uuid: UUID) {
+    init(uuid: UUID, originalMaxRadius: Float = 1E-2) {
         self.uuid = uuid
+        self.maxRadius = originalMaxRadius
         entity.components.set(StrokeComponent(uuid))
     }
     

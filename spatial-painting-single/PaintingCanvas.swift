@@ -217,7 +217,8 @@ extension PaintingCanvas {
     
     /// 一時的な Stroke を追加する
     func addTmpStroke(_ stroke: Stroke) {
-        let newStroke = Stroke(uuid: stroke.uuid)
+        let newStroke = Stroke(uuid: stroke.uuid, originalMaxRadius: stroke.originalMaxRadius)
+        newStroke.maxRadius = stroke.maxRadius
         newStroke.setActiveColor(color: stroke.activeColor)
         newStroke.points = stroke.points
         newStroke.updateMesh()
@@ -233,7 +234,8 @@ extension PaintingCanvas {
                 // 位置を調整する
                 return SIMD3<Float>(stroke.entity.transformMatrix(relativeTo: nil) * SIMD4<Float>(position.x, position.y, position.z, 1.0))
             }
-            let newStroke = Stroke(uuid: stroke.uuid)
+            let newStroke = Stroke(uuid: stroke.uuid, originalMaxRadius: stroke.originalMaxRadius)
+            newStroke.maxRadius = stroke.maxRadius
             newStroke.setActiveColor(color: stroke.activeColor)
             newStroke.points = stroke.points
             newStroke.updateMesh()
