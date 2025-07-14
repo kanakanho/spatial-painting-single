@@ -136,7 +136,7 @@ class ExternalStrokeFileWapper {
         
         // 描画
         for (idx, stroke) in strokes.enumerated() {
-            ctx.setStrokeColor(stroke.color)
+            ctx.setStrokeColor(stroke.color.cgColor)
             let proj = all2D[idx]
             guard proj.count > 1 else { continue }
             ctx.beginPath()
