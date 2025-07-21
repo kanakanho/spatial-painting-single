@@ -36,6 +36,10 @@ class Stroke {
     /// The maximum radius of the stroke.
     var maxRadius: Float = 1E-2
     
+    func setMaxRadius(radius: Float) {
+        maxRadius = radius
+    }
+
     /// 元の maxRadius を保持するプロパティを追加（初期値 1E-2）
     var originalMaxRadius: Float {
         return 1E-2
@@ -50,8 +54,14 @@ class Stroke {
         entity.components.set(StrokeComponent(uuid))
     }
     
+    //修正 by nagao 2025/7/15
     func updateMaxRadiusAndRemesh(scaleFactor: Float) {
-        self.maxRadius = self.originalMaxRadius / scaleFactor
+        //self.maxRadius = self.originalMaxRadius * scaleFactor
+        let scaled = self.originalMaxRadius * scaleFactor
+        let radiusCap: Float   = 3.0 * self.originalMaxRadius // 上限
+        let radiusFloor: Float = 0.3 * self.originalMaxRadius // 下限
+        self.maxRadius = min(max(scaled, radiusFloor), radiusCap)
+        //print("Stroke maxRadius: \(self.maxRadius)")
         self.updateMesh()
     }
     

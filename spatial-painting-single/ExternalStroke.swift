@@ -38,7 +38,7 @@ struct ExternalStroke: Codable {
         // initPointからの相対位置に変換
         self.points = stroke.points.map { $0 - initPoint }
         self.color = stroke.activeColor
-        self.maxRadius = stroke.originalMaxRadius
+        self.maxRadius = stroke.maxRadius //修正 by nagao 2025/7/15
     }
     
     public init(points: [SIMD3<Float>] = [], color: SimpleMaterial.Color = .white, initPoint: SIMD3<Float> = .zero, maxRadius: Float = 1E-2) {

@@ -19,7 +19,8 @@ extension SIMD4 {
 @MainActor
 class ViewModel {
     let webSocketClient: WebSocketClient = .init()
-    let colorPalletModel = ColorPalletModel()
+    //let colorPalletModel = ColorPalletModel()
+    let colorPalletModel = AdvancedColorPalletModel()
     var canvas = PaintingCanvas()
     
     var externalStrokeFileWapper: ExternalStrokeFileWapper = ExternalStrokeFileWapper()
@@ -84,6 +85,8 @@ class ViewModel {
     var normalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
     var planeNormalVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
+    
+    var unitVector: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
     var planePoint: SIMD3<Float> = SIMD3<Float>(0,0,0)
     
@@ -162,6 +165,7 @@ class ViewModel {
         }
     }
     
+    /*
     func changeFingerColor(entity: Entity, colorName: String) {
         for color in colorPalletModel.colors {
             let words = color.accessibilityName.split(separator: " ")
@@ -172,7 +176,96 @@ class ViewModel {
             }
         }
     }
-    
+    */
+
+    // modified by nagao 2025/7/17
+    func changeFingerColor(entity: Entity, colorName: String) {
+        //print("Finger color changed to: \(colorName)")
+        if colorPalletModel.selectedBasicColorName == colorName {
+            return
+        }
+        let colorBall = colorPalletModel.colorBalls.get(withID: colorName)
+        if colorBall == nil {
+            return
+        }
+        let prev = colorPalletModel.selectedBasicColorName
+        if prev != "" {
+            if colorBall!.isBasic || colorName.hasPrefix("m") {
+                if let prevEntity = colorPalletModel.colorEntityDictionary[prev] {
+                    prevEntity.setScale(SIMD3<Float>(repeating: 0.01), relativeTo: nil)
+                    let colorBall2 = colorPalletModel.colorBalls.get(withID: prev)
+                    if colorBall2 != nil {
+                        //print("Unselected color ball: \(colorBall2!.id)")
+                        let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(prev.prefix(1)), isBasic: false)
+                        for cb in subColorBalls {
+                            if let entity2: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                                entity2.removeFromParent()
+                            }
+                        }
+                    }
+                }
+                colorPalletModel.selectedBasicColorName = ""
+            }
+        }
+        if let color: UIColor = colorPalletModel.colorDictionary[colorName] {
+            let material = SimpleMaterial(color: color, isMetallic: false)
+            entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
+            canvas.setMaxRadius(radius: 0.01)
+            if let colorEntity = colorPalletModel.colorEntityDictionary[colorName] {
+                if colorBall!.isBasic {
+                    colorEntity.setScale(SIMD3<Float>(repeating: 0.013), relativeTo: nil)
+                    let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(colorName.prefix(1)), isBasic: false)
+                    for cb in subColorBalls {
+                        if let entity2: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                            colorPalletModel.colorPalletEntity.addChild(entity2)
+                        }
+                    }
+                    colorPalletModel.selectedBasicColorName = colorName
+                }
+                //print("Selected color ball: \(colorBall!.id)  \(colorBall!.hue)  \(colorBall!.brightness)  \(colorBall!.isSelected)")
+            }
+        }
+    }
+
+    // added by nagao 2025/7/17
+    func resetColor() {
+        if colorPalletModel.selectedBasicColorName == "" {
+            return
+        }
+        let prev = colorPalletModel.selectedBasicColorName
+        if prev != "" {
+            if let prevEntity = colorPalletModel.colorEntityDictionary[prev] {
+                prevEntity.setScale(SIMD3<Float>(repeating: 0.01), relativeTo: nil)
+                let colorBall2 = colorPalletModel.colorBalls.get(withID: prev)
+                if colorBall2 != nil {
+                    //print("Unselected color ball: \(colorBall2!.id)")
+                    let subColorBalls = colorPalletModel.colorBalls.filterByID(containing: String(prev.prefix(1)), isBasic: false)
+                    for cb in subColorBalls {
+                        if let entity: Entity = colorPalletModel.colorEntityDictionary[cb.id] {
+                            entity.removeFromParent()
+                        }
+                    }
+                }
+            }
+        }
+        colorPalletModel.selectedBasicColorName = ""
+    }
+
+    // added by nagao 2025/7/17
+    func changeFingerLineWidth(entity: Entity, toolName: String) {
+        //print("Finger line width changed to: \(toolName)")
+        if colorPalletModel.selectedToolName == toolName {
+            return
+        }
+        let toolBall = colorPalletModel.toolBalls.get(withID: toolName)
+        if toolBall != nil {
+            let material = SimpleMaterial(color: canvas.activeColor, isMetallic: false)
+            entity.components.set(ModelComponent(mesh: .generateSphere(radius: Float(toolBall!.lineWidth)), materials: [material]))
+            //print("Selected tool ball: \(toolBall!.id)  \(toolBall!.lineWidth)  \(toolBall!.isSelected)")
+        }
+        colorPalletModel.selectedToolName = toolName
+    }
+
     var dataProvidersAreSupported: Bool {
         HandTrackingProvider.isSupported && SceneReconstructionProvider.isSupported
     }
@@ -454,10 +547,13 @@ class ViewModel {
         if dot > senseThreshold {
             let point = calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07)
             button.setPosition(point, relativeTo: nil)
-            contentEntity.addChild(button)
             let point2 = calculateExtendedPoint(point: point, vector: planeNormalVector, distance: 0.05)
             button2.setPosition(point2, relativeTo: nil)
-            contentEntity.addChild(button2)
+            let isButtonExist = contentEntity.children.contains { $0 === button }
+            if !isButtonExist {
+                contentEntity.addChild(button)
+                contentEntity.addChild(button2)
+            }
         } else {
             button.removeFromParent()
             button2.removeFromParent()
@@ -497,7 +593,9 @@ class ViewModel {
          */
         
         // added by nagao 3/22
-        colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
+        //colorPalletModel.updatePosition(position: positionMatrix.position, wristPosition: wristPos)
+        // added by nagao 2025/7/17
+        colorPalletModel.updatePosition2(position: positionMatrix.position, unitVector: unitVector)
     }
     
     func createHandSphere(wrist: SIMD3<Float>, middle: SIMD3<Float>, little: SIMD3<Float>, isArrowShown: Bool) {
@@ -528,6 +626,8 @@ class ViewModel {
         normalVector = axisVectors[2]
         
         planeNormalVector = axisVectors[0]
+        
+        unitVector = axisVectors[1]
         
         planePoint = center
         
@@ -596,6 +696,8 @@ class ViewModel {
         normalVector = currentNormalVector
         
         planeNormalVector = currentAxisVector
+        
+        unitVector = currentLittleVector
         
         planePoint = center
         
@@ -676,6 +778,7 @@ class ViewModel {
     }
     
     // 色を選択する added by nagao 2025/3/22
+    /*
     func selectColor(colorName: String) {
         for color in colorPalletModel.colors {
             let words = color.accessibilityName.split(separator: " ")
@@ -689,7 +792,26 @@ class ViewModel {
             }
         }
     }
+    */
     
+    // modified by nagao 2025/7/17
+    func selectColor(colorName: String) {
+        if let color: UIColor = colorPalletModel.colorDictionary[colorName] {
+            colorPalletModel.colorPalletEntityDisable()
+            colorPalletModel.setActiveColor(color: color)
+            canvas.setActiveColor(color: color)
+        }
+    }
+
+    // added by nagao 2025/7/17
+    func selectLineWidth(toolName: String) {
+        if let lineWidth = colorPalletModel.toolBalls.get(withID: toolName)?.lineWidth {
+            colorPalletModel.colorPalletEntityDisable()
+            canvas.setMaxRadius(radius: Float(lineWidth))
+        }
+    }
+
+    /*
     func tapColorBall(handAnchor: HandAnchor) {
         guard let indexFingerTipAnchor = handAnchor.handSkeleton?.joint(.indexFingerTip).anchorFromJointTransform else {return}
         let indexFingerTipOrigin = handAnchor.originFromAnchorTransform
@@ -705,6 +827,7 @@ class ViewModel {
             }
         }
     }
+    */
     
     // ストロークを消去する時の長押し時間の処理 added by nagao 2025/3/24
     func recordTime(isBegan: Bool) -> Bool {

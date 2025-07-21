@@ -31,6 +31,8 @@ class PaintingCanvas {
     
     var activeColor = SimpleMaterial.Color.white
     
+    var maxRadius: Float = 1E-2
+
     /// The distance for the box that extends in the positive direction.
     let big: Float = 1E2
     
@@ -93,6 +95,10 @@ class PaintingCanvas {
         activeColor = color
     }
     
+    func setMaxRadius(radius: Float) {
+        maxRadius = radius
+    }
+    
     func setEraserEntity(_ entity: Entity) {
         eraserEntity = entity
     }
@@ -121,6 +127,7 @@ class PaintingCanvas {
         if currentStroke == nil {
             currentStroke = Stroke(uuid: uuid)
             currentStroke!.setActiveColor(color: activeColor)
+            currentStroke!.setMaxRadius(radius: maxRadius)
             strokes.append(currentStroke!)
             
             // Add the stroke to the root.
@@ -144,13 +151,17 @@ class PaintingCanvas {
         if let stroke = currentStroke {
             //print("finish stroke")
             // Trigger the update mesh operation.
+            if stroke.points.count < 2 {
+                currentStroke = nil
+                return
+            }
             stroke.updateMesh()
             
             var count = 0
             for point in stroke.points {
                 if count % 5 == 0 {
                     let entity = eraserEntity.clone(recursive: true)
-                    entity.name = "eraser"
+                    entity.name = "clear"
                     let material = SimpleMaterial(color: UIColor(white: 1.0, alpha: 0.0), isMetallic: false)
                     entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
                     entity.components.set(StrokeComponent(stroke.uuid))
@@ -246,7 +257,7 @@ extension PaintingCanvas {
             for point in stroke.points {
                 if count % 5 == 0 {
                     let entity = eraserEntity.clone(recursive: true)
-                    entity.name = "eraser"
+                    entity.name = "clear"
                     let material = SimpleMaterial(color: UIColor(white: 1.0, alpha: 0.0), isMetallic: false)
                     entity.components.set(ModelComponent(mesh: .generateSphere(radius: 0.01), materials: [material]))
                     entity.components.set(StrokeComponent(stroke.uuid))

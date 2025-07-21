@@ -39,15 +39,6 @@
     "objectMetadataList" : [
       [
         "71BD9494-0C1F-487F-B76B-397021E02CE9",
-        "Root",
-        "colorpanel_2"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "71BD9494-0C1F-487F-B76B-397021E02CE9",
         "Root"
       ],
       {
@@ -61,21 +52,11 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "button",
-        "Materials"
+        "white",
+        "obj1"
       ],
       {
         "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "Sphere"
-      ],
-      {
-        "disallowsFraming" : false,
-        "isExpanded" : false,
         "isLocked" : false
       },
       [
@@ -99,44 +80,6 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "collider"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "collider",
-        "Materials"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "button2"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "white",
-        "obj1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
         "Sphere",
         "GridMaterial"
       ],
@@ -147,20 +90,11 @@
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
         "Root",
-        "button2",
-        "Materials"
+        "Sphere"
       ],
       {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "button"
-      ],
-      {
-        "isExpanded" : true,
+        "disallowsFraming" : false,
+        "isExpanded" : false,
         "isLocked" : false
       }
     ]
@@ -169,7 +103,8 @@
     "objectMetadataList" : [
       [
         "CB766F92-EE55-4A63-9401-E7B8C009764D",
-        "Root"
+        "Root",
+        "GridMaterial"
       ],
       {
         "isExpanded" : true,
@@ -177,8 +112,7 @@
       },
       [
         "CB766F92-EE55-4A63-9401-E7B8C009764D",
-        "Root",
-        "GridMaterial"
+        "Root"
       ],
       {
         "isExpanded" : true,
