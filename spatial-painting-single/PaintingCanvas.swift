@@ -151,7 +151,7 @@ class PaintingCanvas {
         if let stroke = currentStroke {
             //print("finish stroke")
             // Trigger the update mesh operation.
-            if stroke.points.count < 2 {
+            if stroke.points.count < 5 {
                 strokes.removeAll { $0.uuid == stroke.uuid }
                 stroke.entity.removeFromParent()
                 currentStroke = nil

@@ -860,6 +860,7 @@ class ViewModel {
     
     // added by nagao 2025/6/28
     func saveStrokes(displayScale: CGFloat) {
+        if canvas.strokes.isEmpty { return }
         let externalStrokes: [ExternalStroke] = .init(strokes: canvas.strokes, initPoint: .one)
         externalStrokeFileWapper.planeNormalVector = planeNormalVector
         externalStrokeFileWapper.planePoint = planePoint
