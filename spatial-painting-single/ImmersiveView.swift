@@ -37,6 +37,8 @@ struct ImmersiveView: View {
     
     @Environment(\.displayScale) private var displayScale: CGFloat
     
+    private let keyDownHeight: Float = 0.005
+
     var body: some View {
         RealityView { content in
             do {
@@ -58,6 +60,7 @@ struct ImmersiveView: View {
                     print("eraserEntity not found")
                 }
                 
+                /*
                 if let buttonEntity = scene.findEntity(named: "button") {
                     model.setButtonEntity(buttonEntity)
                 } else {
@@ -69,7 +72,15 @@ struct ImmersiveView: View {
                 } else {
                     print("buttonEntity2 not found")
                 }
-                
+                */
+
+                if let buttonPlateEntity = scene.findEntity(named: "board") {
+                    model.setButtonPlateEntity(buttonPlateEntity)
+                    //buttonPlateEntity.setPosition([0, 1, -0.5], relativeTo: nil)
+                } else {
+                    print("buttonPlateEntity not found")
+                }
+
                 /*
                 // added by nagao 3/22
                 for fingerEntity in model.fingerEntities.values {
@@ -399,7 +410,19 @@ extension ImmersiveView {
         else if event.entityB.hasStrokeComponent, model.isEraserMode, model.canvas.tmpStrokes.isEmpty {
             deleteStroke(event.entityB)
         }
-        else if name == "button" || name == "button2" {
+        else if name == "button" {
+            model.buttonEntity.transform.translation.y -= keyDownHeight
+            model.iconEntity.transform.translation.y += 0.01
+            model.iconEntity.orientation = simd_quatf(angle: .pi / 2.0, axis: SIMD3(1, 0, 0))
+            _ = model.recordTime(isBegan: true)
+        }
+        else if name == "button2" {
+            model.buttonEntity2.transform.translation.y -= keyDownHeight
+            model.iconEntity2.transform.translation.y += 0.01
+            model.iconEntity2.orientation = simd_quatf(angle: .pi / 2.0, axis: SIMD3(1, 0, 0))
+            model.iconEntity3.transform.translation.y += 0.01
+            model.iconEntity3.transform.translation.z -= 0.005
+            model.iconEntity3.orientation = simd_quatf(angle: 75.0 * .pi / 180.0, axis: SIMD3(1, 0, 0))
             _ = model.recordTime(isBegan: true)
         }
     }
@@ -425,11 +448,20 @@ extension ImmersiveView {
             }
         }
         else if name == "button" {
+            model.buttonEntity.transform.translation.y += keyDownHeight
+            model.iconEntity.orientation = simd_quatf(angle: 0, axis: SIMD3(1, 0, 0))
+            model.iconEntity.transform.translation.y -= 0.01
             if model.recordTime(isBegan: false) {
                 model.saveStrokes(displayScale: displayScale)
             }
         }
         else if name == "button2" {
+            model.buttonEntity2.transform.translation.y += keyDownHeight
+            model.iconEntity2.orientation = simd_quatf(angle: 0, axis: SIMD3(1, 0, 0))
+            model.iconEntity2.transform.translation.y -= 0.01
+            model.iconEntity3.orientation = simd_quatf(angle: 0, axis: SIMD3(1, 0, 0))
+            model.iconEntity3.transform.translation.y -= 0.01
+            model.iconEntity3.transform.translation.z += 0.005
             if model.recordTime(isBegan: false) {
                 toggleExternalStrokeWindow()
             }

@@ -78,7 +78,15 @@ class ViewModel {
     
     var buttonEntity: Entity = Entity()
     
+    var iconEntity: Entity = Entity()
+    
     var buttonEntity2: Entity = Entity()
+    
+    var iconEntity2: Entity = Entity()
+    
+    var iconEntity3: Entity = Entity()
+    
+    var buttonPlateEntity: Entity = Entity()
     
     var axisVectors: [SIMD3<Float>] = [SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0), SIMD3<Float>(0,0,0)]
     
@@ -104,6 +112,26 @@ class ViewModel {
         self.buttonEntity2 = entity
     }
     
+    func setButtonPlateEntity(_ entity: Entity) {
+        //print("Set buttonPlateEntity")
+        self.buttonPlateEntity = entity
+        if let button = entity.findEntity(named: "button") {
+            buttonEntity = button
+            if let icon = button.findEntity(named: "save") {
+                iconEntity = icon
+            }
+        }
+        if let button = entity.findEntity(named: "button2") {
+            buttonEntity2 = button
+            if let icon2 = button.findEntity(named: "import_loupe") {
+                iconEntity2 = icon2
+            }
+            if let icon3 = button.findEntity(named: "import_film") {
+                iconEntity3 = icon3
+            }
+        }
+    }
+
     func showHandArrowEntities() {
         if handSphereEntity != nil {
             contentEntity.addChild(handSphereEntity!)
@@ -139,8 +167,7 @@ class ViewModel {
         handSphereEntity = nil
         colorPalletModel.colorPalletEntityDisable()
         
-        buttonEntity.removeFromParent()
-        buttonEntity2.removeFromParent()
+        buttonPlateEntity.removeFromParent()
     }
     
     let fingerEntities: [HandAnchor.Chirality: ModelEntity] = [/*.left: .createFingertip(name: "L", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0)),*/ .right: .createFingertip(name: "R", color: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0))]
@@ -485,9 +512,6 @@ class ViewModel {
               let rightWristBase = rightHandAnchor.handSkeleton?.joint(.wrist)
         else { return }
         
-        let button = buttonEntity
-        let button2 = buttonEntity2
-        
         let middle: simd_float4x4 = handAnchor.originFromAnchorTransform * middleBase.anchorFromJointTransform
         let little: simd_float4x4 = handAnchor.originFromAnchorTransform * littleBase.anchorFromJointTransform
         let wrist: simd_float4x4 = handAnchor.originFromAnchorTransform * wristBase.anchorFromJointTransform
@@ -545,18 +569,15 @@ class ViewModel {
         let worldUp = simd_float3(0, 1, 0)
         let dot = simd_dot(normalVector, worldUp)
         if dot > senseThreshold {
-            let point = calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.07)
-            button.setPosition(point, relativeTo: nil)
-            let point2 = calculateExtendedPoint(point: point, vector: planeNormalVector, distance: 0.05)
-            button2.setPosition(point2, relativeTo: nil)
-            let isButtonExist = contentEntity.children.contains { $0 === button }
+            let point = calculateExtendedPoint(point: planePoint, vector: normalVector, distance: 0.05)
+            let matrix = makeBoxTransformMatrix(center: point, longAxis: planeNormalVector, size: SIMD3<Float>(2.5, 2.5, 2.5))
+            buttonPlateEntity.setTransformMatrix(matrix, relativeTo: nil)
+            let isButtonExist = contentEntity.children.contains { $0 === buttonPlateEntity }
             if !isButtonExist {
-                contentEntity.addChild(button)
-                contentEntity.addChild(button2)
+                contentEntity.addChild(buttonPlateEntity)
             }
         } else {
-            button.removeFromParent()
-            button2.removeFromParent()
+            buttonPlateEntity.removeFromParent()
         }
         
         // ワールドの下方向ベクトル
@@ -777,6 +798,60 @@ class ViewModel {
         return extendedPoint
     }
     
+    /// 中心 `center` と長辺方向ベクトル `longAxis`、そして box のサイズ `size`
+    /// (x: 短辺, y: 高さ, z: 長辺) から
+    /// 回転・スケール・平行移動を含む 4×4 ワールド変換行列を作成する
+    func makeBoxTransformMatrix(
+        center: SIMD3<Float>,
+        longAxis: SIMD3<Float>,
+        size: SIMD3<Float>
+    ) -> float4x4 {
+        // 1) 長辺方向を正規化してローカルZ軸に
+        let axisZ = normalize(longAxis)
+        
+        // 2) ワールド上方向を平面に投影してローカルX軸を作成
+        //    → まずワールド上方向ベクトル (0,1,0) と直交するベクトルを求める
+        let worldUp = SIMD3<Float>(0, 1, 0)
+        var axisX = cross(axisZ, worldUp)
+        if length_squared(axisX) < 1e-6 {
+            // axisZ と worldUp がほぼ平行なら別ベクトルを使う
+            axisX = cross(axisZ, SIMD3<Float>(1, 0, 0))
+        }
+        axisX = normalize(axisX)
+        
+        // 3) ローカル Y 軸は右手系で残りの軸として生成
+        let axisY = cross(axisX, axisZ)
+        
+        // 4) サイズの半分を軸ごとにスケール成分として利用
+        let halfSize = size * 0.5
+        let sx = halfSize.x, sy = halfSize.y, sz = halfSize.z
+        
+        // 5) 行列組み立て (列優先)
+        var m = matrix_identity_float4x4
+        // X 軸列
+        m.columns.0 = SIMD4<Float>(axisX.x * sx,
+                                   axisX.y * sx,
+                                   axisX.z * sx,
+                                   0)
+        // Y 軸列
+        m.columns.1 = SIMD4<Float>(axisY.x * sy,
+                                   axisY.y * sy,
+                                   axisY.z * sy,
+                                   0)
+        // Z 軸列
+        m.columns.2 = SIMD4<Float>(-axisZ.x * sz,
+                                   -axisZ.y * sz,
+                                   -axisZ.z * sz,
+                                   0)
+        // 平行移動列
+        m.columns.3 = SIMD4<Float>(center.x,
+                                   center.y,
+                                   center.z,
+                                   1)
+
+        return m
+    }
+
     // 色を選択する added by nagao 2025/3/22
     /*
     func selectColor(colorName: String) {
@@ -860,8 +935,9 @@ class ViewModel {
     
     // added by nagao 2025/6/28
     func saveStrokes(displayScale: CGFloat) {
-        if canvas.strokes.isEmpty { return }
-        let externalStrokes: [ExternalStroke] = .init(strokes: canvas.strokes, initPoint: .one)
+        let cleaned = canvas.strokes.removingShortStrokes(minPoints: 3)
+        if cleaned.isEmpty { return }
+        let externalStrokes: [ExternalStroke] = .init(strokes: cleaned, initPoint: .one)
         externalStrokeFileWapper.planeNormalVector = planeNormalVector
         externalStrokeFileWapper.planePoint = planePoint
         externalStrokeFileWapper.writeStroke(externalStrokes: externalStrokes, displayScale: displayScale)

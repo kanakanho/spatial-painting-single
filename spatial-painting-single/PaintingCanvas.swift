@@ -151,7 +151,7 @@ class PaintingCanvas {
         if let stroke = currentStroke {
             //print("finish stroke")
             // Trigger the update mesh operation.
-            if stroke.points.count < 5 {
+            if stroke.points.count < 4 {
                 strokes.removeAll { $0.uuid == stroke.uuid }
                 stroke.entity.removeFromParent()
                 currentStroke = nil
@@ -363,5 +363,12 @@ extension PaintingCanvas {
             .minXMaxYMaxZ: SIMD3<Float>(minX, maxY, maxZ),
             .maxXMaxYMaxZ: SIMD3<Float>(maxX, maxY, maxZ)
         ])
+    }
+}
+
+extension Array where Element == Stroke {
+    /// point が count 以下のストロークを取り除いた配列を返す
+    func removingShortStrokes(minPoints: Int = 3) -> [Stroke] {
+        return self.filter { $0.points.count >= minPoints }
     }
 }
